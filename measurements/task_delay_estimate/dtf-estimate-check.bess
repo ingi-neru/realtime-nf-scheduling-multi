@@ -1,0 +1,143 @@
+import time
+
+backpressure = True
+batch_size = 32.0
+meas_interval_sec = int($meas_interval!'10')
+queue_size = int($queue_size!'256')
+num_tasks = int($num_tasks!'2')
+assert num_tasks > 1
+
+task1_path_per_pkt_costs = [1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7]
+task1_path_weights = [1, 10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+CPU_GHZ = 2.4
+MAX_WEIGHT = 1024
+BP_COST = 10_000
+percentiles = [0, 50, 90, 95, 99, 100]
+bp_costs = [BP_COST for _ in range(num_tasks)]
+
+
+def calc_estimate(weight, weight_list, task_name, tc_stats, Q=queue_size, B=batch_size):
+    weight_normed = weight / float(sum(weight_list))
+    avg_cycles = tc_stats[task_name]['avg_cycles']
+    # avg_batch = tc_stats[task_name]['avg_batchsize']
+    avg_batch = B
+    # keep it as 'ghz', since we are dealing with time at 'ns' instead of 's'
+    cpu_hz = CPU_GHZ
+
+    other_tasks_load = sum(tc_stats[_tname]['avg_cycles'] / cpu_hz
+                           for _tname in tc_stats if _tname != task_name)
+    q_delay = Q / avg_batch * avg_cycles / cpu_hz * 1 / weight_normed
+    estimate1 = max(other_tasks_load, q_delay)
+    estimate2 = avg_cycles / cpu_hz
+    estimate = estimate1 + estimate2
+
+    # NB: multiply by some magical num to dom the measured values
+    #estimate *= 1.2
+    return estimate
+
+
+# print csv header
+tasks = [f"task{i+1}" for i in range(num_tasks)]
+columns = ("weight", "cycle_num", "min", "50", "90", "95", "99", "max", "est")
+
+print("\t".join(f"{t}_{c}" for t in tasks for c in columns))
+
+# run measurements
+for weight1 in task1_path_weights:
+    for cost in task1_path_per_pkt_costs:
+        bess.reset_all()
+        bess.pause_all()
+
+        w0 = bess.add_worker(wid=0, core=0)
+        w1 = bess.add_worker(wid=1, core=1)
+
+        # build pipeline
+        src = Source(name="src")
+        rr = RandomSplit(gates=list(range(num_tasks)), drop_rate=0.0)
+        src -> Timestamp() -> rr
+        src.attach_task(wid=0)
+
+        qs = [Queue(name=f'task{i+1}_path', size=queue_size, backpressure=backpressure)
+              for i in range(num_tasks)]
+        bs = [Bypass(cycles_per_batch=BP_COST, cycles_per_packet=0)
+              for i in range(num_tasks)]
+        ms = [DDSketch(accuracy=0.01, max_bucket_number=2048)
+              for i in range(num_tasks)]
+
+        for i in range(num_tasks):
+            rr:i -> qs[i] -> bs[i] -> ms[i] -> Sink() # taskN path
+
+        bess.add_tc('root', policy='weighted_fair', resource='cycle', wid=1)
+        qs[0].attach_task(parent='root', share=weight1)  # task1 path
+        # share weights between other tasks
+        weight2 = int((MAX_WEIGHT - weight1) / (num_tasks - 1))
+        for qn in qs[1:]:
+            qn.attach_task(parent='root', share=weight2)  # taskN path
+
+        # recreate the task2 path
+        bess.disconnect_modules(bs[0].name, 0)
+        bess.disconnect_modules(qs[0].name, 0)
+        bess.destroy_module(bs[0].name)
+        bs[0] = Bypass(cycles_per_batch=int(cost), cycles_per_packet=0)
+        bp_costs[0] = int(cost)
+        qs[0] -> bs[0] -> ms[0]
+
+        bess.resume_all()
+
+        for m in ms:
+            m.empty()
+
+        # run bess...
+        time.sleep(meas_interval_sec)
+
+        bess.pause_all()
+
+        # collect results
+        tcs = bess.list_tcs().classes_status
+        tc_stats = {}
+        for tc in tcs:
+            tc_name = getattr(tc, 'class').name
+            if any(n in tc_name for n in tasks):
+                tc_stat = bess.get_tc_stats(tc_name)
+                try:
+                    avg_bsize = tc_stat.packets / tc_stat.nonidle_count
+                    avg_cyc = tc_stat.nonidle_cycles / tc_stat.nonidle_count
+                except ZeroDivisionError:
+                    avg_bsize = 0.0
+                    avg_cyc = 0.0
+                try:
+                    avg_cyc_pkt = tc_stat.nonidle_cycles / tc_stat.packets
+                except ZeroDivisionError:
+                    avg_cyc_pkt = 0.0
+
+                tc_stats[tc_name[6:-2]] = {
+                    'avg_batchsize': avg_bsize,
+                    'avg_cycles':  avg_cyc,
+                    'avg_cycles_per_pkt': avg_cyc_pkt,
+                }
+
+        weights = [weight1] + [weight2 for _ in range(num_tasks - 1)]
+
+        # task1
+        task_ests = [calc_estimate(weights[i], weights, f"{t}_path", tc_stats)
+                     for i, t in enumerate(tasks)]
+        task_percentiles = [{p: ms[i].get_quantile(quantile=p).value for p in percentiles}
+                            for i in range(num_tasks)]
+        task_res_list = [("{:.5f}\t" * 7).format(
+            task_perc[0],
+            task_perc[50],
+            task_perc[90],
+            task_perc[95],
+            task_perc[99],
+            task_perc[100],
+            task_ests[idx],
+        ) for idx, task_perc in enumerate(task_percentiles)]
+
+        # print results
+        results = ['\t'
+                   .join(map(str,
+                             (weights[i], bp_costs[i], task_res_list[i][:-1])
+                   )) for i in range(num_tasks)]
+        print('\t'.join(results))
+
+bess.reset_all()
