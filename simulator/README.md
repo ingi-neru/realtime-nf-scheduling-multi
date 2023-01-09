@@ -103,7 +103,7 @@ The reallocation controller runs in every 10-th control period.
 | :---    | :---    |
 | Fig. 8a | `python3 simulator.py --infile ./inputs/taildrop_2workers.gml --alpha 1 --delta 0.01 --rho_roughness 0.025 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
 | Fig. 8b | `python3 simulator.py --infile ./inputs/taildrop_realloc_optimize.gml --alpha 1 --delta 0.01 --rho_roughness 0.01 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
-| Fig. 8c | `python3 simulator.py --infile ./inputs/example_basic_realloc.gml --alpha 1 --delta 0.01 --rho_roughness 0.025 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
+| Fig. 8c | `python3 simulator.py --infile ./inputs/example_basic_realloc_least_constrained.gml --alpha 1 --delta 0.01 --rho_roughness 0.025 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
 | Fig. 8d | `python3 simulator.py --infile ./inputs/taildrop_realloc_optimize_7.gml --alpha 1 --delta 0.01 --rho_roughness 0.01 --rounds 75 --epsilon 1e-05 --realloc_interval 10 --plot` |
 | Fig. 8e | `python3 simulator.py --infile ./inputs/mgw_default_reallocation.gml --alpha 1 --delta 0.01 --rho_roughness 0.025 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
 
