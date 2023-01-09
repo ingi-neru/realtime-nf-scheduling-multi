@@ -44,11 +44,15 @@ def get_default_switch_params():
 def guess_task_weights(filename):
     """ Guess task weights in the known scenarios"""
     if 'example_basic' in filename:
+        if 'fixed' in filename:
+            return [0.005, 0.005, 0.78, 0.21]
         return [0.333, 0.333, 0.334]
 
     if 'taildrop' in filename:
         if '4' in filename:
             return [0.25, 0.25, 0.25, 0.25]
+        if '7' in filename:
+            return[0.142, 0.142, 0.142, 0.142, 0.142, 0.142, 0.143]
         return [0.313, 0.334, 0.353]
 
     if 'mgw' in filename:
