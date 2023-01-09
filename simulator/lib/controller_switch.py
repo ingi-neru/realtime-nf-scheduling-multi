@@ -550,16 +550,6 @@ class SwitchController:
                 delta += nue
                 d = new_d
 
-        # calculate obj function value for DEBUG purposes
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            obj_func_value = {f"Worker{_worker.get_id()}":
-                              min(settings.M,
-                                  min(_task.calc_load()
-                                      for _task in _worker.tasks))
-                              for _worker in self.switch.workers}
-            logging.log(logging.DEBUG,
-                        "'L' Obj function value:\n %s", obj_func_value)
-
         # norm weights on workers
         logging.log(logging.INFO,
                     "Updated and scaled weights on Workers")
