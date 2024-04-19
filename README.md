@@ -1,6 +1,6 @@
-# Real-Time NFV Scheduling on COTS Hardware for O-RAN
+# Real-Time NFV Scheduling on COTS Hardware
 
-This repository holds source codes and artifacts of a closed-loop controller for real-time NFV scheduling on COTS hardware for O-RAN services.
+This repository holds source codes and artifacts of a closed-loop controller for real-time NFV scheduling on COTS hardware.
 
 ## Components
 

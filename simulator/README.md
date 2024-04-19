@@ -1,4 +1,4 @@
-# Simulator for Real-Time NFV Scheduling on COTS Hardware in O-RAN
+# Simulator for Real-Time NFV Scheduling on COTS Hardware
 
 [Overview](#overview) | [Installation](#installation) | [Usage](#usage) | [License](#license)
 
@@ -11,11 +11,11 @@ Simulator Workflow:
 ```
                                                    +--------------+
                                    +-------------->| System State |-------------+
-                                   |               |  at Time t   |             |
+                                   |               |  at time t   |             |
                                    |               +--------------+             V
 +------------+    t:=0     +--------------+                              +--------------+
 |   Initial  |------------>|     Run      |                              | Run gradient |
-| CPU shares |             | System Model |                              | optimization |
+| CPU shares |             | system model |                              | optimization |
 +------------+             +--------------+                              +--------------+
                                    ^                                            |
                                    |  t:= t+1      +--------------+             |
@@ -82,9 +82,8 @@ Parameter α is responsible for weighing in the possible delay SLO violations, m
 
 | Figure  | Command |
 | :---    | :---    |
-| Fig. 5a | `python3 simulator.py --infile ./inputs/example_basic_new_estimate.gml --alpha 0.05 --delta 0.01 --rho_roughness 0.05 --rounds 50 --epsilon 1e-05 --plot` |
-| Fig. 5b | `python3 simulator.py --infile ./inputs/example_basic_new_estimate.gml --alpha 0.2 --delta 0.01 --rho_roughness 0.025 --rounds 50 --epsilon 1e-05 --plot` |
-| Fig. 5c | `python3 simulator.py --infile ./inputs/example_basic_new_estimate.gml --alpha 0.05 --delta 0.01 --rho_roughness 0.025 --rounds 50 --epsilon 1e-05 --plot` |
+| Fig. 5a | `python3 simulator.py --infile ./inputs/example_basic_new_estimate.gml --alpha 1.0 --delta 0.01 --rho_roughness 0.05 --rounds 50 --epsilon 1e-05 --plot` |
+| Fig. 5b | `python3 simulator.py --infile ./inputs/example_basic_new_estimate.gml --alpha 0.05 --delta 0.01 --rho_roughness 0.025 --rounds 50 --epsilon 1e-05 --plot` |
 
 #### Figure 6: Controller with simultaneously satisfiable delay and rate SLOs
 
@@ -94,18 +93,6 @@ Controller on pipelines _taildrop_ and _MGW_ accompanied with simultaneously sat
 | :---    | :---    |
 | Fig. 6a | `python3 simulator.py --infile ./inputs/taildrop.gml --alpha 1 --delta 0.01 --rho_roughness 0.025 --rounds 50 --epsilon 1e-05 --plot` |
 | Fig. 6b | `python3 simulator.py --infile ./inputs/mgw_default.gml --alph 1 --delta 0.01 --rho_roughness 0.025 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
-
-#### Figure 8: Task migration results
-
-The reallocation controller runs in every 10-th control period.
-
-| Figure  | Command |
-| :---    | :---    |
-| Fig. 8a | `python3 simulator.py --infile ./inputs/taildrop_2workers.gml --alpha 1 --delta 0.01 --rho_roughness 0.025 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
-| Fig. 8b | `python3 simulator.py --infile ./inputs/taildrop_realloc_optimize.gml --alpha 1 --delta 0.01 --rho_roughness 0.01 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
-| Fig. 8c | `python3 simulator.py --infile ./inputs/example_basic_realloc_least_constrained.gml --alpha 1 --delta 0.01 --rho_roughness 0.025 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
-| Fig. 8d | `python3 simulator.py --infile ./inputs/taildrop_realloc_optimize_7.gml --alpha 1 --delta 0.01 --rho_roughness 0.01 --rounds 75 --epsilon 1e-05 --realloc_interval 10 --plot` |
-| Fig. 8e | `python3 simulator.py --infile ./inputs/mgw_default_reallocation.gml --alpha 1 --delta 0.01 --rho_roughness 0.025 --rounds 20 --epsilon 1e-05 --realloc_interval 10 --plot` |
 
 
 ## License
