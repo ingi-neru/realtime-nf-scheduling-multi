@@ -1,7 +1,9 @@
+from . import switch
+
 class Worker:
     """ Worker represents a CPU """
 
-    def __init__(self, worker_id, speed, switch, tasks=None):
+    def __init__(self, worker_id, speed, switch=switch, tasks=None):
         self.worker_id = worker_id
         self.switch = switch
         self.speed = speed

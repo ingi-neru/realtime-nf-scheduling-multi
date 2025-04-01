@@ -3,12 +3,13 @@ import logging
 import numpy as np
 
 from . import settings
-
+from . import switch
+from .controller_common_fns import ControllerCommonFns as common_functions
 
 class SwitchController:
     """ Controller for a Switch """
 
-    def __init__(self, switch=None):
+    def __init__(self, switch=switch):
         self.period = 0
         self.switch = switch
 
@@ -140,18 +141,14 @@ class SwitchController:
         logging.log(
             logging.DEBUG, "'w_corner_points_final' vector:\n %s", w_corner_points_final)
         return np.asarray(w_corner_points_final)
+    
+    def obj_val_end_to_end(self, weights, switches):
+        return np.sum([self.obj_val(_worker, weights) for _switch in switches for _worker in _switch])
 
     def obj_val(self, _worker, weights):
         sum_excess_flow_delays = 0
         for _flow in self.switch.flows:
-            flow_delay = 0
-            j = 0
-            for _task in _worker.tasks:
-                flow_delay += _task.calc_time_if_full_weight() / weights[j]
-                j += 1
-            for _taskflow in _flow.taskflows:
-                if _taskflow.task not in _worker.tasks:
-                    flow_delay += _taskflow.task.calc_time_if_full_weight() / _taskflow.task.weight
+            flow_delay = common_functions.calc_flow_delay(_worker, _flow, weights)
             sum_excess_flow_delays += max(0,
                                           flow_delay - _flow.slo_params['delay'])
             logging.log(
@@ -187,7 +184,7 @@ class SwitchController:
         # objective value of the starting point:
         best_obj_val = self.obj_val(_worker, w_try)
         best_w = a.copy()
-        for j in range(settings.LINEAR_SEARCH_TRIES):
+        for _ in range(settings.LINEAR_SEARCH_TRIES):
             # w_try = a.copy() + [x * j for x in quantum]
             w_try += list(quantum)
             logging.log(logging.DEBUG, "Weight tried out: %s", w_try)
@@ -224,7 +221,7 @@ class SwitchController:
                 quantum = [x / settings.LINEAR_SEARCH_TRIES for x in v]
                 cornerpoints[1] = cornerpoints[0] + quantum
         return best_w
-
+ 
     def control_2(self):
         """ Control function called by the framework. """
         logging.log(logging.INFO, "Executing %s", self)
@@ -252,7 +249,7 @@ class SwitchController:
             P = eye_mx - one_over_n_matrix
             d = np.dot(P, d)
 
-            if np.linalg.norm(d, np.inf) > 0.1:
+            if np.linalg.norm(d, np.inf) > 0.1: # Why do we need this?
                 d = [x * 0.1 / np.linalg.norm(d, np.inf)
                      for x in d]
 
@@ -271,6 +268,7 @@ class SwitchController:
                 for _task in _worker.tasks:
                     _task.weight = w_got[j]
                     j += 1
+
 
         # calculate obj function value for DEBUG purposes
         if logging.getLogger().isEnabledFor(logging.DEBUG):
@@ -539,7 +537,7 @@ class SwitchController:
                                     "Task%d was not blocked; its new weight is: %f",
                                     i, _worker.tasks[i].weight)
                         if _worker.tasks[i].weight >= 1 - 2 * eps or \
-                           _worker.tasks[i].weight < 2 * eps or \
+                                _worker.tasks[i].weight < 2 * eps or \
                            (proportion_blocker and proportion_decreaser_id == i):
                             tasks_blocked[i] = True
                             logging.log(logging.DEBUG,
@@ -552,7 +550,7 @@ class SwitchController:
 
         # norm weights on workers
         logging.log(logging.INFO,
-                    "Updated and scaled weights on Workers")
+                    "Updated and scaled weight for workers")
         for _worker in self.switch.workers:
             _worker.normalize_task_weights()
             logging.log(logging.INFO, "Worker%d: %s",

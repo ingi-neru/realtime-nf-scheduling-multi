@@ -1,12 +1,14 @@
+from . import worker
 class Task:
     """ Represents a task """
 
-    def __init__(self, name, worker, taskflows=None, weight=1.0, task_id=-1):
+    def __init__(self, name, worker=worker, taskflows=None, weight=1.0, task_id=-1, switch_id=0):
         self.name = name
         self.worker = worker
         self.weight = weight
         self.task_id = task_id
         self.taskflows = taskflows or []
+        self.switch_id = switch_id
         # lambda: 1 if task has high load, 0 otherwise
         self.lambd = 0
 
@@ -72,8 +74,15 @@ class Task:
         """ Calculate worker usage as the function of flow rates and processing costs """
         return sum(tflow.flow.current_rate * tflow.calc_proc_cost()
                    for tflow in self.taskflows)
-
+    
     def calc_load_deriv(self):
+        switch = self.worker.switch
+        if switch.simulator.endtoend_controller:
+            print("End to end case gradient was used!!!!!")
+            return self.calc_load_deriv_end_to_end()
+        return self.calc_load_deriv_single_switch()
+
+    def calc_load_deriv_single_switch(self):
         """ Calculate task load derivative """
         switch = self.worker.switch
         alpha = switch.simulator.simulator_params['alpha']
@@ -85,9 +94,23 @@ class Task:
                                   if tflow.flow.calc_delay() > tflow.slo_params['delay']]
         _common_term = self.worker.speed * pow(self.weight, 2)
         sum_viol_flow_load = sum(theta * queue_size / _common_term
-                                 for tflow in delay_violating_tflows)
+                                 for _ in delay_violating_tflows)
 
         return alpha * sum_viol_flow_load + self.lambd
+    
+    def calc_load_deriv_end_to_end(self):
+        switch = self.worker.switch
+        alpha = switch.simulator.simulator_params['alpha']
+        queue_size = switch.queue_size
+        theta = self.calc_theta()
+        _lambda = self.lambd
+        delay_violating_tflows = [tflow
+                                  for tflow in self.taskflows
+                                  if tflow.flow.calc_delay() > tflow.slo_params['delay']]
+        _common_term = alpha * queue_size * theta / (self.worker.speed)
+        squared_weight = pow(self.weight, 2)
+        term = _common_term / sum(tflow.slo_params['delay'] for tflow in delay_violating_tflows)
+        return - (_lambda + squared_weight * term)
 
     def calc_time_if_full_weight(self):
         """ Calculate task speed if it had a weight = 1 """

@@ -99,7 +99,7 @@ if __name__ == "__main__":
         if __tasks_plot_config:
             tasks_to_plot = __tasks_plot_config.split(',')
 
-        out_file = config['simulator'].get('outfile', settings.DEFAULT_OUTFILE)
+ 
         plot_file = config['plot'].get('file', '')
 
         loglevel = config['simulator'].get('loglevel', 'INFO')
@@ -121,13 +121,14 @@ if __name__ == "__main__":
             'realloc_interval': args_parsed.realloc_interval,
         }
 
-        flows_to_plot = args_parsed.plot_flows
-        tasks_to_plot = args_parsed.plot_tasks
-
-        out_file = args_parsed.outfile
-        plot_file = args_parsed.plotfile
-
         loglevel = args_parsed.loglevel
+
+    flows_to_plot = args_parsed.plot_flows
+    tasks_to_plot = args_parsed.plot_tasks
+
+    out_file = args_parsed.outfile
+    plot_file = args_parsed.plotfile
+
 
     # set loglevel
     logging.basicConfig(stream=sys.stdout,
@@ -136,6 +137,7 @@ if __name__ == "__main__":
 
     # init simulator
     G = nx.read_gml(input_file)
+    nx.drawing.nx_pydot.write_dot(G, "example.dot")
     simulator = sim.Simulator(simulator_params=simulator_params)
     simulator.init_from_gml(G, w)
 

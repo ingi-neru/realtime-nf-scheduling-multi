@@ -22,19 +22,19 @@ graph [
         		flow
         		[
           			flowid 0
-				flowname "Flow QoS"
+				    flowname "Flow QoS"
           			flowrate 10
           			flowrateSLO 0.4
           			flowdelaySLO 5
         		]
         		flow
-			[
-				flowid 1
-				flowname "Flow Bulk"
-				flowrate 12
-				flowrateSLO 0.1
-				flowdelaySLO 11
-			]
+    			[
+    				flowid 1
+    				flowname "Flow Bulk"
+    				flowrate 12
+    				flowrateSLO 0.1
+    				flowdelaySLO 11
+    			]
         	]
 	]
 	node
@@ -53,19 +53,11 @@ graph [
         		flow
         		[
           			flowid 0
-				flowname "Flow QoS"
-          			flowrate 10
-          			flowrateSLO 0.4
-          			flowdelaySLO 5
         		]
         		flow
-			[
-				flowid 1
-				flowname "Flow Bulk"
-				flowrate 12
-				flowrateSLO 0.1
-				flowdelaySLO 11
-			]
+     			[
+    				flowid 1
+     			]
         	]
 	]
 	node
@@ -76,18 +68,14 @@ graph [
 		pos 2
 		task 1
 		taskname "Task 1"
-		worker 0
-		workerspeed 1
+		worker 1
+		workerspeed 2
 		cost 2
 		flows
 		[
         		flow
         		[
           			flowid 0
-				flowname "Flow QoS"
-          			flowrate 10
-          			flowrateSLO 0.4
-          			flowdelaySLO 5
         		]
         	]
 	]
@@ -105,13 +93,9 @@ graph [
 		flows
 		[
         		flow
-			[
-				flowid 1
-				flowname "Flow Bulk"
-				flowrate 12
-				flowrateSLO 0.1
-				flowdelaySLO 11
-			]
+    			[
+    				flowid 1
+    			]
         	]
 	]
   edge [

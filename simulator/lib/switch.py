@@ -1,12 +1,12 @@
 from . import settings
 from . import utils
-
+from . import simulator
 
 class Switch:
     """ Represents a switch """
 
-    def __init__(self, simulator, controller, flows, workers,
-                 reallocation_controller=None, switch_params=None):
+    def __init__(self, simulator=simulator, controller=None, flows=None, workers=None,
+                 reallocation_controller=None, switch_params=None, switch_id=0):
         _sw_params = switch_params
         if switch_params is None:
             _sw_params = utils.get_default_switch_params()
@@ -18,7 +18,7 @@ class Switch:
         self.reallocation_controller = reallocation_controller
         self.flows = flows
         self.workers = workers
-
+        self.switch_id = switch_id
     def __repr__(self):
         return f"Switch{self.get_id()}"
 

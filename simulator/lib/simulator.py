@@ -50,7 +50,7 @@ class Simulator:
         flows_dict = {}
         for node_id, attr in nx_graph.nodes(data=True):
             _module = modules[node_id-1]
-            # flow attributes aer stored in a list..
+            # flow attributes are stored in a list..
             if isinstance(attr['flows']['flow'], list):
                 for _flow in attr['flows']['flow']:
                     if not _flow['flowid'] in flows_dict:
@@ -66,11 +66,11 @@ class Simulator:
                 flows_dict[_flow['flowid']]['path'].append(_module)
             else:
                 raise ValueError("Invalid flow data!")
-
+        print(flows_dict)
         flows = [flow.Flow(taskflows=[],
                            slo_params={'delay': f['flowdelaySLO'],
                                        'rate': f['flowrateSLO']},
-                           rate=f['flowrate'],
+        rate=f['flowrate'],
                            name=f['flowname'],
                            flow_id=f['flowid'])
                  for _, f in flows_dict.items()]
@@ -93,6 +93,7 @@ class Simulator:
                              for _, attr in nx_graph.nodes(data=True)
                              if attr.get('switch', 0) == switch_id}
 
+
             workers = [worker.Worker(wid, speed, switch=None, tasks=None)
                        for wid, speed in worker_speeds.items()]
 
@@ -103,7 +104,7 @@ class Simulator:
                                   switch=None,
                                   tasks=None)
                 )
-
+            
             # init tasks
             task_counter = 0
             for _, attr in nx_graph.nodes(data=True):
@@ -116,7 +117,8 @@ class Simulator:
                             name=attr['taskname'],
                             worker=workers[wid],
                             weight=weights[task_counter],
-                            task_id=attr['task']
+                            task_id=attr['task'],
+                            switch_id=switch_id
                         )
                     )
                     task_counter += 1
@@ -156,14 +158,15 @@ class Simulator:
                 realloc_controller = \
                     controller_reallocation.TaskMigrationController(switch=None,
                                                                     strategies=realloc_strat)
-
+            print("registering new switch with id: ", switch_id)
             new_switch = switch.Switch(
                 simulator=self,
                 controller=controller,
                 reallocation_controller=realloc_controller,
                 flows=flows,
                 workers=workers,
-                switch_params=switch_params
+                switch_params=switch_params,
+                switch_id=switch_id
             )
             # add switch controller
             controller.register_switch(new_switch)
@@ -173,11 +176,14 @@ class Simulator:
             for _worker in workers:
                 _worker.switch = new_switch
 
+            print(workers)
             self.switches.append(new_switch)
 
         if use_endtoend_controller:
             new_ctrlr = controller_endtoend.EndToEndController(self.switches)
             self.endtoend_controller = new_ctrlr
+
+        print(self.switches)
 
     def __simulate_switch(self, switch_obj):
         """ Run a switch simulator for a single period
@@ -189,18 +195,29 @@ class Simulator:
                  for _worker in switch_obj.workers
                  for _task in _worker.tasks]
         num_flows = len(switch_obj.flows)
-        num_taskflows = sum(len(_flow.taskflows)
-                            for _flow in switch_obj.flows)
+        num_taskflows = sum(1
+                            for _task in tasks
+                            for _ in _task.taskflows)
+        
+
         num_tasks = len(tasks)
-        num_task_crossings = sum(len(_flow.taskflows) - 1
-                                 for _flow in switch_obj.flows)
+        num_task_crossings = sum(1    
+                                 for _flow in switch_obj.flows
+                                 for _taskflow in _flow.taskflows
+                                 if _taskflow.task.switch_id == switch_obj.switch_id
+                                 )
+        
+        cross_switch_tasks, cross_task_values = [], []
         num_columns = num_taskflows + num_flows
-        num_rows = num_tasks + num_flows + num_task_crossings
+        num_rows = num_tasks + num_flows + len(cross_switch_tasks) + num_task_crossings
+        print("num_rows = ", num_rows, " = ", num_tasks, " + ", num_flows, " + ", len(cross_switch_tasks), " + ", num_task_crossings)
+        print("num_columns: ", num_columns, " = ", num_taskflows, " + ", num_flows)
+        print(cross_switch_tasks)
+
 
         # Note: scipy MINIMIZEs the obj function, thus, to maximize
         # the sum of the x-es, we do c *= -1
         coeffs = [0] * num_taskflows + [-1] * num_flows
-
         # set variable bounds
         upper_bounds = ([_tflow.flow.rate
                          for _task in tasks
@@ -226,6 +243,8 @@ class Simulator:
             task_crossings = [(arc[0].task, arc[1].task)
                               for arc in utils.pairwise(_flow.taskflows)]
             for src_task, dst_task in task_crossings:
+                if src_task not in tasks or dst_task not in tasks:
+                    continue
                 src_idx = sum(len(_task.taskflows)
                               for _task in tasks[:tasks.index(src_task)])
                 dst_idx = sum(len(_task.taskflows)
@@ -234,14 +253,23 @@ class Simulator:
                 A[row_idx][min(dst_idx + idx, num_taskflows - 1)] = -1
                 row_idx += 1
             _tmp_idx = num_tasks + num_task_crossings + idx
-            A[_tmp_idx][tasks.index(_flow.taskflows[0].task) + idx] = -1
+            if _flow.taskflows[0].task not in tasks:
+                A[_tmp_idx][idx] = -1
+            else:
+                A[_tmp_idx][tasks.index(_flow.taskflows[0].task) + idx] = -1
             A[_tmp_idx][num_taskflows + idx] = 1
 
         # construct B vector
         b = np.zeros(num_rows)
         for i, _task in enumerate(tasks):
             b[i] = _task.weight * _task.worker.speed
-
+        for i, _task in enumerate(cross_switch_tasks):
+            _tmp_idx = num_tasks + num_flows + num_task_crossings + i
+            # Example constraint: Ensure cross-switch task doesn't exceed local flow rate
+            task_idx = sum(len(_task.taskflows)
+                            for _task in cross_switch_tasks[:cross_switch_tasks.index(_task)])
+            A[_tmp_idx][min(task_idx + i, len(cross_switch_tasks) - 1)] = -1  # Adjust idx based on flow index
+            b[_tmp_idx] = 0
         A_upperbound = A[:num_tasks, ]
         A_equality = A[num_tasks:, ]
 

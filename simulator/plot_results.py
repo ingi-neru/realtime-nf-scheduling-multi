@@ -4,6 +4,7 @@
 import argparse
 
 import matplotlib.pyplot as plt
+from numpy import datetime_as_string
 import pandas as pd
 
 plt.set_loglevel("warning")
@@ -22,6 +23,7 @@ def get_flowid_from_column(column_name: str, column_type: str) -> str:
 
 
 def plot_csv(csv_file: str, title=None, outfile=None, tasks=None, flows=None):
+
     """ Plot simulator CSV data.
 
     Parameters:
@@ -32,6 +34,7 @@ def plot_csv(csv_file: str, title=None, outfile=None, tasks=None, flows=None):
     flows (list/None): names of flows to plot
     """
     _dataframe = pd.read_csv(csv_file)
+    print("outfile = ", outfile)
     plot_df(_dataframe, title, outfile, tasks, flows)
 
 
@@ -51,7 +54,7 @@ def plot_df(df: pd.DataFrame, title=None, outfile=None, tasks=None, flows=None):
     flow_columns = [c for c in df.columns if any(f in c for f in flow_names)]
     task_columns = [c for c in df.columns if any(t in c for t in task_names)]
 
-    plt.style.use('seaborn-colorblind')
+    plt.style.use('seaborn-v0_8-colorblind')
     size = 12.5
     params = {'legend.fontsize': 'large',
               'axes.labelsize': size,
@@ -179,6 +182,7 @@ def plot_df(df: pd.DataFrame, title=None, outfile=None, tasks=None, flows=None):
     plt.tight_layout(**layout_args)
 
     # present figure
+    print('outfile = ', outfile)
     if outfile:
         plt.savefig(outfile, dpi=150)
     else:
