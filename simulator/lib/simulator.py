@@ -75,7 +75,7 @@ class Simulator:
                            flow_id=f['flowid'])
                  for _, f in flows_dict.items()]
         flow_paths = {k: f['path'] for k, f in flows_dict.items()}
-
+        self.flows = flows
         # init switches
         for switch_id in switch_ids:
             realloc_bool = bool(nx_graph.graph.get('resource_reallocation', 0))
@@ -176,14 +176,12 @@ class Simulator:
             for _worker in workers:
                 _worker.switch = new_switch
 
-            print(workers)
             self.switches.append(new_switch)
-
+        
         if use_endtoend_controller:
             new_ctrlr = controller_endtoend.EndToEndController(self.switches)
             self.endtoend_controller = new_ctrlr
-
-        print(self.switches)
+        
 
     def __simulate_switch(self, switch_obj):
         """ Run a switch simulator for a single period
@@ -195,24 +193,15 @@ class Simulator:
                  for _worker in switch_obj.workers
                  for _task in _worker.tasks]
         num_flows = len(switch_obj.flows)
-        num_taskflows = sum(1
-                            for _task in tasks
-                            for _ in _task.taskflows)
-        
+        num_taskflows = sum(len(_flow.taskflows)
+                            for _flow in switch_obj.flows)
 
         num_tasks = len(tasks)
-        num_task_crossings = sum(1    
-                                 for _flow in switch_obj.flows
-                                 for _taskflow in _flow.taskflows
-                                 if _taskflow.task.switch_id == switch_obj.switch_id
-                                 )
+        num_task_crossings = sum(len(_flow.taskflows) - 1
+                                    for _flow in switch_obj.flows)
         
-        cross_switch_tasks, cross_task_values = [], []
         num_columns = num_taskflows + num_flows
-        num_rows = num_tasks + num_flows + len(cross_switch_tasks) + num_task_crossings
-        print("num_rows = ", num_rows, " = ", num_tasks, " + ", num_flows, " + ", len(cross_switch_tasks), " + ", num_task_crossings)
-        print("num_columns: ", num_columns, " = ", num_taskflows, " + ", num_flows)
-        print(cross_switch_tasks)
+        num_rows = num_tasks + num_flows + num_task_crossings
 
 
         # Note: scipy MINIMIZEs the obj function, thus, to maximize
@@ -243,8 +232,6 @@ class Simulator:
             task_crossings = [(arc[0].task, arc[1].task)
                               for arc in utils.pairwise(_flow.taskflows)]
             for src_task, dst_task in task_crossings:
-                if src_task not in tasks or dst_task not in tasks:
-                    continue
                 src_idx = sum(len(_task.taskflows)
                               for _task in tasks[:tasks.index(src_task)])
                 dst_idx = sum(len(_task.taskflows)
@@ -253,23 +240,124 @@ class Simulator:
                 A[row_idx][min(dst_idx + idx, num_taskflows - 1)] = -1
                 row_idx += 1
             _tmp_idx = num_tasks + num_task_crossings + idx
-            if _flow.taskflows[0].task not in tasks:
-                A[_tmp_idx][idx] = -1
-            else:
-                A[_tmp_idx][tasks.index(_flow.taskflows[0].task) + idx] = -1
+            A[_tmp_idx][tasks.index(_flow.taskflows[0].task) + idx] = -1
             A[_tmp_idx][num_taskflows + idx] = 1
 
         # construct B vector
         b = np.zeros(num_rows)
         for i, _task in enumerate(tasks):
             b[i] = _task.weight * _task.worker.speed
-        for i, _task in enumerate(cross_switch_tasks):
-            _tmp_idx = num_tasks + num_flows + num_task_crossings + i
-            # Example constraint: Ensure cross-switch task doesn't exceed local flow rate
-            task_idx = sum(len(_task.taskflows)
-                            for _task in cross_switch_tasks[:cross_switch_tasks.index(_task)])
-            A[_tmp_idx][min(task_idx + i, len(cross_switch_tasks) - 1)] = -1  # Adjust idx based on flow index
-            b[_tmp_idx] = 0
+        A_upperbound = A[:num_tasks, ]
+        A_equality = A[num_tasks:, ]
+
+        b_upperbound = b[:num_tasks]
+        b_equality = b[num_tasks:]
+
+        # solve the linear program
+        res = linprog(c=coeffs,
+                      A_ub=A_upperbound,
+                      b_ub=b_upperbound,
+                      A_eq=A_equality,
+                      b_eq=b_equality,
+                      bounds=(bounds),
+                      #method='revised simplex',
+                      )
+
+        logging.log(logging.DEBUG, "bounds:\n%s", bounds)
+        logging.log(logging.DEBUG, "'c':\n%s", coeffs)
+        logging.log(logging.DEBUG, "'b' vector:\n%s", b)
+        logging.log(logging.DEBUG, "'A' matrix:\n%s", A)
+        logging.log(logging.DEBUG, "Linear Program Results:\n%s", res)
+        # update flow rates
+        for idx, _flow in enumerate(switch_obj.flows):
+            _flow.flowrate = res.x[num_taskflows + idx]
+
+
+    def __simulate_endtoend(self, switches):
+        """ Run end to end flow simulator for a single period
+
+           Parameters:
+           switch_obj (Switch): switch to simulate
+        """
+
+        tasks, flows, taskflows = [], [], []
+
+        for _switch in switches:
+            for _flow in _switch.flows:
+                for _taskflow in _flow.taskflows:
+                    if _taskflow.task not in tasks:
+                        tasks.append(_taskflow.task)
+        
+        for _switch in switches:
+            for _flow in _switch.flows:
+                if _flow not in flows:
+                    flows.append(_flow)
+
+        for _switch in switches:
+            for _flow in _switch.flows:
+                for _taskflow in _flow.taskflows:
+                    if _taskflow not in taskflows:
+                        taskflows.append(_taskflow)
+
+        print("flows: ", flows)
+        num_flows = len(flows)
+        num_taskflows = len(taskflows)
+        num_tasks = len(tasks)
+        num_task_crossings = sum(len(_flow.taskflows) - 1
+                                    for _flow in flows) 
+        num_columns = num_taskflows + num_flows
+        num_rows = num_tasks + num_flows + num_task_crossings
+        print(taskflows)
+        print("num crossings: ", num_task_crossings)
+
+
+        # Note: scipy MINIMIZEs the obj function, thus, to maximize
+        # the sum of the x-es, we do c *= -1
+        coeffs = [0] * num_taskflows + [-1] * num_flows
+        # set variable bounds
+        upper_bounds = ([_tflow.flow.rate
+                         for _tflow in taskflows] +
+                        [_flow.rate  for _flow in flows])
+        print([_tflow.flow.rate for _task in tasks for _tflow in _task.taskflows])
+        print([_flow.rate for _switch in switches for _flow in _switch.flows])
+        print(upper_bounds)
+        bounds = np.zeros((num_columns, 2))
+        for i in range(num_columns):
+            # set lower bounds
+            bounds[i][0] = 0
+            # set upper bounds
+            bounds[i][1] = upper_bounds[i]
+
+        # construct A matrix
+        A = np.zeros((num_rows, num_columns))
+        counter = 0
+        for i in range(num_tasks):
+            for _tflow in tasks[i].taskflows:
+                A[i][counter] = _tflow.calc_proc_cost()
+                counter += 1
+
+        row_idx = num_tasks
+        idx = 0
+        for _flow in flows:
+            task_crossings = [(arc[0].task, arc[1].task)
+                              for arc in utils.pairwise(_flow.taskflows)]
+            for src_task, dst_task in task_crossings:
+                src_idx = sum(len(_task.taskflows)
+                              for _task in tasks[:tasks.index(src_task)])
+                dst_idx = sum(len(_task.taskflows)
+                              for _task in tasks[:tasks.index(dst_task)])
+                A[row_idx][min(src_idx + idx, num_taskflows - 1)] = 1
+                A[row_idx][min(dst_idx + idx, num_taskflows - 1)] = -1
+                row_idx += 1
+            _tmp_idx = num_tasks + num_task_crossings + idx
+            A[_tmp_idx][tasks.index(_flow.taskflows[0].task) + idx] = -1
+            A[_tmp_idx][num_taskflows + idx] = 1
+            idx += 1
+
+        # construct B vector
+        b = np.zeros(num_rows)
+        for i, _task in enumerate(tasks):
+            b[i] = _task.weight * _task.worker.speed
         A_upperbound = A[:num_tasks, ]
         A_equality = A[num_tasks:, ]
 
@@ -292,38 +380,17 @@ class Simulator:
         logging.log(logging.DEBUG, "'A' matrix:\n%s", A)
         logging.log(logging.DEBUG, "Linear Program Results:\n%s", res)
 
-
         # update flow rates
-        for idx, _flow in enumerate(switch_obj.flows):
+        idx = 0
+        for _flow in flows:
             _flow.current_rate = res.x[num_taskflows + idx]
-
-
-        # update task lambdas
-        delta = self.simulator_params['delta']
-        for t_idx, _task in enumerate(tasks):
-            logging.log(logging.DEBUG, "\ntask id `_task.get_id()' %s", _task.get_id())
-            _task.lambd = 0
-            demand_for_more_traffic = False
-            for tf_idx, _tflow in enumerate(_task.taskflows):
-                logging.log(logging.DEBUG, "taskflow id `tf_idx' %s", tf_idx)
-                rate_limit = (1 - delta) * res.x[num_taskflows + tf_idx]
-                logging.log(logging.DEBUG, "at taskflow, `rate_limit' %s", rate_limit)
-                logging.log(logging.DEBUG, "`_tflow.flow.slo_params['rate']' %s", _tflow.flow.slo_params['rate'])
-                logging.log(logging.DEBUG, "`_tflow.flow.current_rate' %s", _tflow.flow.rate)
-                logging.log(logging.DEBUG, "`min(_tflow.flow.slo_params['rate'], _tflow.flow.rate)' %s", min(_tflow.flow.slo_params['rate'], _tflow.flow.rate))
-                if  rate_limit <= min(_tflow.flow.slo_params['rate'], _tflow.flow.rate):
-                    demand_for_more_traffic = True
-                    logging.log(logging.DEBUG, "Needed more rate/weight at task %s", _task.get_id())
-                    break
-            if demand_for_more_traffic:
-                _tresh = (1 - delta) * b[t_idx]
-                if np.dot(A[t_idx], res.x) >= _tresh:
-                    _task.lambd = 1
-
-
+            if _flow.current_rate == 0:
+                _flow.current_rate = 0.1
+            idx += 1
 
     def __simulate_switches(self):
         """ Simulate switches one after the other """
+        
         for _switch in self.switches:
             self.__simulate_switch(_switch)
 
@@ -368,7 +435,10 @@ class Simulator:
                     _switch.controller.control()
 
         # run simulator (new flow rates and lambdas, etc.)
-        self.__simulate_switches()
+        if self.endtoend_controller:
+            self.__simulate_endtoend(self.switches)
+        else:
+            self.__simulate_switches()
 
         # collect data
         self.results.append(self.__collect_simulation_results())

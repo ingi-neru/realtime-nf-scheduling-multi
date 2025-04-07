@@ -24,9 +24,6 @@ class EndToEndController:
     def control(self):
         """ Control function called by the framework. """
         logging.log(logging.INFO, "Executing %s", self)
-
-        # increase period counter
         for controller in self.controllers:
-            controller.control_2()
-
+            controller.control()
         self.period += 1

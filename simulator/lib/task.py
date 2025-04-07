@@ -110,7 +110,7 @@ class Task:
         _common_term = alpha * queue_size * theta / (self.worker.speed)
         squared_weight = pow(self.weight, 2)
         term = _common_term / sum(tflow.slo_params['delay'] for tflow in delay_violating_tflows)
-        return - (_lambda + squared_weight * term)
+        return (_lambda + term / squared_weight)
 
     def calc_time_if_full_weight(self):
         """ Calculate task speed if it had a weight = 1 """
