@@ -142,8 +142,38 @@ class SwitchController:
             logging.DEBUG, "'w_corner_points_final' vector:\n %s", w_corner_points_final)
         return np.asarray(w_corner_points_final)
     
-    def obj_val_end_to_end(self, weights, switches):
-        return np.sum([self.obj_val(_worker, weights) for _switch in switches for _worker in _switch])
+
+    def obj_val_end_to_end(self, _worker, weights):
+        for _switch in self.switch.simulator.switches:
+            sum_excess_flow_delays = 0
+            for _flow in _switch.flows:
+                flow_delay = common_functions.calc_flow_delay(_worker, _flow, weights)
+                sum_excess_flow_delays += flow_delay / _flow.slo_params['delay']
+                logging.log(
+                    logging.DEBUG, "'delay and dSLO of flow named': %s", _flow.flow_id)
+                logging.log(logging.DEBUG, " %s",  flow_delay)
+                logging.log(logging.DEBUG, "%s", _flow.slo_params['delay'])
+                # logging.log(logging.DEBUG, "'delay SLO of flow': %s", _flow.flow_id, _flow.slo_params['delay'])
+            logging.log(logging.DEBUG, "'sum_excess_flow_delays': %s",
+                        sum_excess_flow_delays)
+
+            sum_weighted_lambdas = 0
+            j = 0
+            for _task in _worker.tasks:
+                sum_weighted_lambdas += _task.lambd * weights[j]
+                j += 1
+            for _other_worker in self.switch.workers:
+                if _other_worker != _worker:
+                    for _task in _other_worker.tasks:
+                        sum_weighted_lambdas += _task.lambd * _task.weight
+            logging.log(logging.DEBUG, "'sum_weighted_lambdas': %s",
+                        sum_weighted_lambdas)
+
+            alpha = self.switch.simulator.simulator_params['alpha']
+            obj_val = alpha * sum_excess_flow_delays - sum_weighted_lambdas
+            logging.log(
+                logging.DEBUG, "'obj_val (alpha * exc.delays - wghtd.ls)': %s", obj_val)
+        return obj_val
 
     def obj_val(self, _worker, weights):
         sum_excess_flow_delays = 0
@@ -178,17 +208,20 @@ class SwitchController:
         return obj_val
 
     def arg_opt_obj_val_on_line_segment(self, _worker, a, b):
+        obj_val = self.obj_val
+        if self.switch.simulator.endtoend_controller:
+            obj_val = self.obj_val_end_to_end
         v = b - a
         quantum = [x / settings.LINEAR_SEARCH_TRIES for x in v]
         w_try = a.copy()
         # objective value of the starting point:
-        best_obj_val = self.obj_val(_worker, w_try)
+        best_obj_val = obj_val(_worker, w_try)
         best_w = a.copy()
         for _ in range(settings.LINEAR_SEARCH_TRIES):
             # w_try = a.copy() + [x * j for x in quantum]
             w_try += list(quantum)
             logging.log(logging.DEBUG, "Weight tried out: %s", w_try)
-            curr_obj_val = self.obj_val(_worker, w_try)
+            curr_obj_val = obj_val(_worker, w_try)
             logging.log(logging.DEBUG,
                         "Its objective value: %s", curr_obj_val)
             if curr_obj_val < best_obj_val:

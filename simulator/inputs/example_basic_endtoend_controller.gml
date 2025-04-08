@@ -3,6 +3,7 @@ graph [
  	name "Example MultiSwitch Configuration"
   endtoend_controller 1
  	directed 1
+  num_workers 2
  	Q 1
  	B 1
 	node
@@ -15,7 +16,7 @@ graph [
 		taskname "Task 0"
 		worker 0
 		workerspeed 1
-		cost 0.1
+		cost 0
     switch 0
 		flows
 		[
@@ -24,18 +25,18 @@ graph [
           			flowid 0
 				flowname "Flow 0"
           			flowrate 10
-          			flowrateSLO 0.3334
-          			flowdelaySLO 7
+          			flowrateSLO 0.4
+          			flowdelaySLO 5
         		]
         		flow
-			[
-				flowid 1
-				flowname "Flow 1"
-				flowrate 10
-				flowrateSLO 0.2
-				flowdelaySLO 6
-			]
-        	]
+          [
+            flowid 1
+            flowname "Flow 1"
+            flowrate 12
+            flowrateSLO 0.1
+            flowdelaySLO 11
+          ]
+    ]
 	]
 	node
 	[
@@ -47,7 +48,7 @@ graph [
 		taskname "Task 0"
 		worker 0
 		workerspeed 1
-		cost 0.1
+		cost 0
     switch 0
 		flows
 		[
@@ -56,16 +57,16 @@ graph [
           			flowid 0
 				flowname "Flow 0"
           			flowrate 10
-          			flowrateSLO 0.3334
-          			flowdelaySLO 7
+          			flowrateSLO 0.4
+          			flowdelaySLO 5
         		]
         		flow
 			[
 				flowid 1
 				flowname "Flow 1"
-				flowrate 10
-				flowrateSLO 0.2
-				flowdelaySLO 6
+				flowrate 12
+				flowrateSLO 0.1
+				flowdelaySLO 11
 			]
         	]
 	]
@@ -88,8 +89,8 @@ graph [
           			flowid 0
 				flowname "Flow 0"
           			flowrate 10
-          			flowrateSLO 0.3334
-          			flowdelaySLO 7
+          			flowrateSLO 0.4
+          			flowdelaySLO 5
         		]
         	]
 	]
@@ -111,9 +112,9 @@ graph [
 			[
 				flowid 1
 				flowname "Flow 1"
-				flowrate 10
-				flowrateSLO 0.2
-				flowdelaySLO 6
+				flowrate 12
+				flowrateSLO 0.1
+				flowdelaySLO 11
 			]
         	]
 	]
@@ -127,7 +128,7 @@ graph [
 		taskname "Task 3"
 		worker 0
 		workerspeed 1
-		cost 2
+		cost 1
     switch 1
 		flows
 		[
@@ -136,8 +137,8 @@ graph [
           			flowid 0
 				flowname "Flow 0"
           			flowrate 10
-          			flowrateSLO 0.3334
-          			flowdelaySLO 7
+          			flowrateSLO 0.4
+          			flowdelaySLO 5
         		]
         	]
 	]
@@ -159,9 +160,9 @@ graph [
 			[
 				flowid 1
 				flowname "Flow 1"
-				flowrate 10
-				flowrateSLO 0.2
-				flowdelaySLO 6
+				flowrate 12
+				flowrateSLO 0.1
+				flowdelaySLO 11
 			]
         	]
 	]
@@ -184,5 +185,5 @@ graph [
   edge [
     source 4
     target 6
-  ]
+    ]  
 ]

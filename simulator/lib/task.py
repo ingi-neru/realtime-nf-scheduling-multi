@@ -78,9 +78,14 @@ class Task:
     def calc_load_deriv(self):
         switch = self.worker.switch
         if switch.simulator.endtoend_controller:
-            print("End to end case gradient was used!!!!!")
-            return self.calc_load_deriv_end_to_end()
-        return self.calc_load_deriv_single_switch()
+            to_return = self.calc_load_deriv_end_to_end()
+            if to_return < 0:
+                print("Negative gradient in end to end case")
+            return to_return
+        to_return = self.calc_load_deriv_single_switch()
+        if to_return < 0:
+            print("Negative gradient in single switch case") 
+        return to_return
 
     def calc_load_deriv_single_switch(self):
         """ Calculate task load derivative """
@@ -104,13 +109,11 @@ class Task:
         queue_size = switch.queue_size
         theta = self.calc_theta()
         _lambda = self.lambd
-        delay_violating_tflows = [tflow
-                                  for tflow in self.taskflows
-                                  if tflow.flow.calc_delay() > tflow.slo_params['delay']]
         _common_term = alpha * queue_size * theta / (self.worker.speed)
+        inverse_delay_slos = sum([(1 / _tflow.slo_params['delay'])
+                         for _tflow in self.taskflows])
         squared_weight = pow(self.weight, 2)
-        term = _common_term / sum(tflow.slo_params['delay'] for tflow in delay_violating_tflows)
-        return (_lambda + term / squared_weight)
+        return _lambda + ( ( _common_term * inverse_delay_slos ) / squared_weight)
 
     def calc_time_if_full_weight(self):
         """ Calculate task speed if it had a weight = 1 """
