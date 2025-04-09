@@ -210,7 +210,7 @@ class SwitchController:
     def arg_opt_obj_val_on_line_segment(self, _worker, a, b):
         obj_val = self.obj_val
         if self.switch.simulator.endtoend_controller:
-            obj_val = self.obj_val_end_to_end
+            obj_val = self.obj_val
         v = b - a
         quantum = [x / settings.LINEAR_SEARCH_TRIES for x in v]
         w_try = a.copy()

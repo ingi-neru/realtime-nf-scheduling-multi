@@ -113,7 +113,7 @@ class Task:
         inverse_delay_slos = sum([(1 / _tflow.slo_params['delay'])
                          for _tflow in self.taskflows])
         squared_weight = pow(self.weight, 2)
-        return _lambda + ( ( _common_term * inverse_delay_slos ) / squared_weight)
+        return _lambda + ( ( _common_term * inverse_delay_slos ) / squared_weight) 
 
     def calc_time_if_full_weight(self):
         """ Calculate task speed if it had a weight = 1 """
