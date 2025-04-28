@@ -49,6 +49,7 @@ def plot_df(df: pd.DataFrame, title=None, outfile=None, tasks=None, flows=None):
     tasks (list/None): names of tasks to plot
     flows (list/None): names of flows to plot
     """
+    time_round = 'Time [round]'
     flow_names = flows or [""]
     task_names = tasks or [""]
     flow_columns = [c for c in df.columns if any(f in c for f in flow_names)]
@@ -92,7 +93,7 @@ def plot_df(df: pd.DataFrame, title=None, outfile=None, tasks=None, flows=None):
             label=legend_label,
         )
     axes[0].set_title('Flow Rates')
-    axes[0].set_xlabel('Time [round]')
+    axes[0].set_xlabel(time_round)
     axes[0].set_ylabel('Rate')
 
     # delay
@@ -129,7 +130,7 @@ def plot_df(df: pd.DataFrame, title=None, outfile=None, tasks=None, flows=None):
         )
     axes[2].set_title('Task Weights')
     axes[2].set_ylabel('Weight')
-    axes[2].set_xlabel('Time [round]')
+    axes[2].set_xlabel(time_round)
 
     # lambda
     columns_to_plot = [c for c in df.columns if "lambda" in c and c in task_columns]
@@ -150,7 +151,7 @@ def plot_df(df: pd.DataFrame, title=None, outfile=None, tasks=None, flows=None):
 
     axes[3].set_title('Task Lambdas')
     axes[3].set_ylabel('Lambda')
-    axes[3].set_xlabel('Time [round]')
+    axes[3].set_xlabel(time_round)
     axes[3].set_yticks([0, 1])
     axes[3].set_ylim(-.1, 1.1)
     axes[3].set_xticks(range(0, len(df.index)))

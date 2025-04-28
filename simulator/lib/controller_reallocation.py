@@ -120,11 +120,8 @@ class TaskMigrationController:
                 task_to_move = _task
         return task_to_move
 
-    def control(self):
-        """ Control function called by the framework """
-        logging.log(logging.INFO, "Executing %s", self)
-
-        # collect overused workers and underused workers
+    def find_overused_and_underused_workers(self):
+        """ Helper function to find overused and underused workers """
         overused_workers = []
         underused_workers = []
         for _worker in self.switch.workers:
@@ -133,6 +130,64 @@ class TaskMigrationController:
             else:
                 overused_workers.append(_worker)
 
+        return overused_workers, underused_workers
+    
+    def migrate_task(self, task_to_move, target_worker):
+        if task_to_move and target_worker:
+            logging.log(logging.INFO, "Moving task %s to worker Worker%d",
+                        task_to_move.name, target_worker.get_id())
+            task_to_move.migrate_to_worker(target_worker)
+    def move_least_constrained_task(self, candidate_tasks, spare_capacities, underused_workers):
+        task_to_move = \
+            self.__get_least_delayconstrained_task(candidate_tasks)
+        if task_to_move:
+            task_load = task_to_move.calc_worker_usage()
+            target_worker = next((_worker
+                                  for _worker in underused_workers
+                                  if spare_capacities[_worker.get_id()] > task_load),
+                                 None)
+        try:
+            logging.log(logging.DEBUG,
+                        "'least_constrained' strategy result: "
+                        "move %s to worker Worker%d",
+                        task_to_move.name, target_worker.get_id())
+        except AttributeError:
+            logging.log(logging.DEBUG,
+                        "'least_constrained' strategy result: no move")
+
+    def move_flow_affinity_task(self, candidate_tasks, spare_capacities, underused_workers):
+        task_to_move, target_worker = \
+        self.__get_best_flowaffinity_task(candidate_tasks,
+                                              underused_workers)
+        try:
+            logging.log(logging.DEBUG,
+                        "'flow_affinity' strategy result: move %s to worker Worker%d",
+                        task_to_move.name, target_worker.get_id())
+        except AttributeError:
+            logging.log(logging.DEBUG,
+                        "'flow_affinity' strategy result: no move")
+    
+    def move_greedy_task(self, candidate_tasks, spare_capacities, underused_workers):
+        task_to_move = self.__get_most_expensive_task(candidate_tasks)
+        task_load = task_to_move.calc_worker_usage()
+        target_worker = next((_worker
+                              for _worker in underused_workers
+                              if spare_capacities[_worker.get_id()] > task_load),
+                             None)
+        try:
+            logging.log(logging.DEBUG,
+                        "'greedy' strategy result: move %s to worker Worker%d",
+                        task_to_move.name, target_worker.get_id())
+        except AttributeError:
+            logging.log(logging.DEBUG,
+                        "'greedy' strategy result: no move")
+
+    def control(self):
+        """ Control function called by the framework """
+        logging.log(logging.INFO, "Executing %s", self)
+
+        # collect overused workers and underused workers
+        overused_workers, underused_workers = self.find_overused_and_underused_workers()
         logging.log(logging.DEBUG, "Underused Workers: %s",
                     [f"Worker{w.get_id()}" for w in underused_workers])
         logging.log(logging.DEBUG, "Overused Workers: %s",
@@ -151,57 +206,14 @@ class TaskMigrationController:
 
             # strategy 1: move tasks with least constraining SLOs
             if any(strat in self.strategies for strat in ('all', 'least_constrained')):
-                task_to_move = \
-                    self.__get_least_delayconstrained_task(candidate_tasks)
-                if task_to_move:
-                    task_load = task_to_move.calc_worker_usage()
-                    target_worker = next((_worker
-                                          for _worker in underused_workers
-                                          if spare_capacities[_worker.get_id()] > task_load),
-                                         None)
-                try:
-                    logging.log(logging.DEBUG,
-                                "'least_constrained' strategy result: "
-                                "move %s to worker Worker%d",
-                                task_to_move.name, target_worker.get_id())
-                except AttributeError:
-                    logging.log(logging.DEBUG,
-                                "'least_constrained' strategy result: no move")
-
+                self.move_least_constrained_task(candidate_tasks, spare_capacities, underused_workers) 
             # strategy 2: check flow affinity:
             if any(strat in self.strategies for strat in ('all', 'flow_affinity')):
-                task_to_move, target_worker = \
-                    self.__get_best_flowaffinity_task(candidate_tasks,
-                                                      underused_workers)
-                try:
-                    logging.log(logging.DEBUG,
-                                "'flow_affinity' strategy result: move %s to worker Worker%d",
-                                task_to_move.name, target_worker.get_id())
-                except AttributeError:
-                    logging.log(logging.DEBUG,
-                                "'flow_affinity' strategy result: no move")
-
+                self.move_flow_affinity_task(candidate_tasks, spare_capacities, underused_workers)
             # strategy 3: greedy: move most extensive task
             if any(strat in self.strategies for strat in ('all', 'greedy')):
-                task_to_move = self.__get_most_expensive_task(candidate_tasks)
-                task_load = task_to_move.calc_worker_usage()
-                target_worker = next((_worker
-                                      for _worker in underused_workers
-                                      if spare_capacities[_worker.get_id()] > task_load),
-                                     None)
-                try:
-                    logging.log(logging.DEBUG,
-                                "'greedy' strategy result: move %s to worker Worker%d",
-                                task_to_move.name, target_worker.get_id())
-                except AttributeError:
-                    logging.log(logging.DEBUG,
-                                "'greedy' strategy result: no move")
-
+                self.move_greedy_task(candidate_tasks, spare_capacities, underused_workers)
             # move task
-            if task_to_move and target_worker:
-                logging.log(logging.INFO, "Moving task %s to worker Worker%d",
-                            task_to_move.name, target_worker.get_id())
-                task_to_move.migrate_to_worker(target_worker)
-
+            self.migrate_task(task_to_move, target_worker)
         # increase period counter
         self.period += 1
