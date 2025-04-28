@@ -80,7 +80,7 @@ graph [
 		taskname "Task 1"
 		worker 0
 		workerspeed 1
-		cost 2
+		cost 1
     switch 0
 		flows
 		[

@@ -32,7 +32,6 @@ class Simulator:
 
     def init_from_gml(self, nx_graph, weights):
         """ Read configuration from GML file """
-
         # read graph parameters
         self.name = nx_graph.graph['name']
 
@@ -77,6 +76,7 @@ class Simulator:
         flow_paths = {k: f['path'] for k, f in flows_dict.items()}
         self.flows = flows
         # init switches
+        task_counter = 0
         for switch_id in switch_ids:
             realloc_bool = bool(nx_graph.graph.get('resource_reallocation', 0))
             realloc_strat = nx_graph.graph.get('reallocation_strategies', 'all')
@@ -106,7 +106,6 @@ class Simulator:
                 )
             
             # init tasks
-            task_counter = 0
             for _, attr in nx_graph.nodes(data=True):
                 wid = attr['worker']
                 if attr.get('switch', 0) == switch_id and \
@@ -330,8 +329,6 @@ class Simulator:
             for _taskflow in _flow.taskflows:
                 taskflows.append(_taskflow)
 
-        print("taskflows: ", taskflows)
-        print("flows: ", flows)
         print("tasks: ", tasks)
         num_flows = len(flows)
         num_taskflows = len(taskflows)
@@ -347,7 +344,8 @@ class Simulator:
         coeffs = [0] * num_taskflows + [-1] * num_flows
         # set variable bounds
         upper_bounds = ([_tflow.flow.rate
-                         for _tflow in taskflows] +
+                         for _task in tasks
+                         for _tflow in _task.taskflows] +
                         [_flow.rate  for _flow in flows])
         bounds = np.zeros((num_columns, 2))
         for i in range(num_columns):

@@ -42,6 +42,7 @@ def get_default_switch_params():
 
 
 def guess_task_weights(filename):
+    print("filename is: ", filename)
     """ Guess task weights in the known scenarios"""
     if 'example_basic' in filename:
         if 'fixed' in filename:
@@ -54,7 +55,8 @@ def guess_task_weights(filename):
         if '7' in filename:
             return[0.142, 0.142, 0.142, 0.142, 0.142, 0.142, 0.143]
         return [0.313, 0.334, 0.353]
-
+    if 'endtoend' in filename:
+        return [0.333, 0.333, 0.334, 0.5, 0.5]
     if 'mgw' in filename:
         # the mgw setup: ingress, egress weight is 1,
         # bearer tasks share CPU equally

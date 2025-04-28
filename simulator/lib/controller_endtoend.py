@@ -20,6 +20,7 @@ class EndToEndController:
     def register_switch(self, switch):
         """ Add switch to control """
         self.switches.append(switch)
+        self.controllers.append(controller_switch.SwitchController(switch))
 
     def control(self):
         """ Control function called by the framework. """
