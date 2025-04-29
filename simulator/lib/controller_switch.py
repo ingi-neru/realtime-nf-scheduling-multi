@@ -290,14 +290,13 @@ class SwitchController:
             if np.linalg.norm(d, np.inf) > 0.1: # Why do we need this?
                 d = [x * 0.1 / np.linalg.norm(d, np.inf)
                      for x in d]
-            
-            w_local_text = "'w_local' vector:\n %s"
+
             logging.log(logging.DEBUG,
                         "projected and scaled 'd' vector:\n %s", d)
             if np.linalg.norm(d, np.inf) > 0:
                 w_local = [_task.weight for _task in _worker.tasks]
                 logging.log(logging.DEBUG,
-                            w_local_text, w_local)
+                            "'w_local' vector:\n %s", w_local)
 
                 corner_points = self.w_corner_points_for_control_2(w_local, d, _worker,
                                                                    self.switch.simulator.simulator_params['rho_roughness'])
@@ -371,10 +370,9 @@ class SwitchController:
             if np.linalg.norm(d, np.inf) > 0:
                 A = - np.eye(d_len)
                 w_local = [_task.weight for _task in _worker.tasks]
-    
-                w_local_text = "'w_local' vector:\n %s"
+
                 logging.log(logging.DEBUG,
-                            w_local_text, w_local)
+                            "'w_local' vector:\n %s", w_local)
 
                 b_hat = - np.dot(A, w_local.copy())  # b = 0
                 d_hat = np.dot(A, d)
@@ -395,7 +393,7 @@ class SwitchController:
                         #w_try = w_local +  i * quantum * d
                         w_try = w_local.copy()
                         logging.log(logging.DEBUG,
-                                    w_local_text, w_local)
+                                    "'w_local' vector:\n %s", w_local)
                         logging.log(
                             logging.DEBUG, "'w_local as w_try entry' vector:\n %s", w_try)
                         tobreak = False
@@ -463,7 +461,7 @@ class SwitchController:
                 logging.log(logging.DEBUG, "'best_i' :\n %s", best_i)
                 logging.log(logging.DEBUG, "'quantum' :\n %s", quantum)
                 logging.log(logging.DEBUG,
-                            w_local_text, w_local)
+                            "'w_local' vector:\n %s", w_local)
                 logging.log(logging.DEBUG, "'d' vector:\n %s", d)
                 logging.log(logging.DEBUG, "'w_got' vector:\n %s", w_got)
 

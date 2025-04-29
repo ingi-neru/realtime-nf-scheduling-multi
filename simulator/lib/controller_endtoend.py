@@ -9,8 +9,7 @@ from . import switch
 class EndToEndController:
     """ End-to-end Controller: works over multiple switches """
 
-    def __init__(self, switches=None):
-
+    def __init__(self, switches=[switch]):
         self.period = 0
         self.switches = switches
         self.controllers = [controller_switch.SwitchController(_switch) for _switch in switches]
