@@ -154,7 +154,10 @@ class SwitchController:
         sum_excess_flow_delays = 0
         for _flow in self.switch.flows:
             flow_delay = common_functions.calc_flow_delay(_worker, _flow, weights)
-            sum_excess_flow_delays += (flow_delay / _flow.slo_params['delay'])
+            # Square the normalized delay violation instead of the whole term
+            violation = (flow_delay / _flow.slo_params['delay'])
+            if violation > 0:
+                sum_excess_flow_delays += violation * violation
             logging.log(
                 logging.DEBUG, "'delay and dSLO of flow named': %s", _flow.flow_id)
             logging.log(logging.DEBUG, " %s",  flow_delay)

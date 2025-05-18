@@ -78,7 +78,7 @@ class Task:
     def calc_load_deriv(self):
         switch = self.worker.switch
         if switch.simulator.endtoend_controller:
-            return self.calc_load_deriv_end_to_end()
+            return self.calc_load_deriv_end_to_end_squared()
         else:
             return self.calc_load_deriv_single_switch()
 
@@ -108,6 +108,26 @@ class Task:
 
         common_term = (alpha * theta * queue_size) / sum(self.worker.speed * squared_weight * _tflow.slo_params['delay'] for _tflow in self.taskflows)
         return common_term + _lambda 
+
+    def calc_load_deriv_end_to_end_squared(self):
+        switch = self.worker.switch
+        alpha = switch.simulator.simulator_params['alpha']
+        queue_size = switch.queue_size
+        theta = self.calc_theta()
+        weight = self.weight
+        _lambda = self.lambd
+
+        # Calculate derivative for squared normalized delay violations
+        sum_deriv = 0
+        for _tflow in self.taskflows:
+            flow_delay = _tflow.calc_delay()
+            violation = (flow_delay / _tflow.slo_params['delay'])
+            if violation > 0:
+                # Derivative of squared normalized violation
+                delay_deriv = 2 * violation * (theta * queue_size) / (self.worker.speed * weight * weight * _tflow.slo_params['delay'])
+                sum_deriv += delay_deriv
+
+        return alpha * sum_deriv + _lambda
 
     def calc_time_if_full_weight(self):
         """ Calculate task speed if it had a weight = 1 """
