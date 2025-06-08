@@ -1,9 +1,13 @@
-strict digraph "Example Switch" {
-1 [pos="[0, 0]", task=0, taskname="Task 0", worker=0, workerspeed=1, cost=0, flows="{'flow': [{'flowid': 0, 'flowname': 'Flow QoS', 'flowrate': 10, 'flowrateSLO': 0.4, 'flowdelaySLO': 5}, {'flowid': 1, 'flowname': 'Flow Bulk', 'flowrate': 12, 'flowrateSLO': 0.1, 'flowdelaySLO': 11}]}"];
-2 [pos="[2, 0]", task=0, taskname="Task 0", worker=0, workerspeed=1, cost=0, flows="{'flow': [{'flowid': 0}, {'flowid': 1}]}"];
-3 [pos="[4, 2]", task=1, taskname="Task 1", worker=1, workerspeed=2, cost=2, flows="{'flow': {'flowid': 0}}"];
-4 [pos="[0, 0]", task=2, taskname="Task 2", worker=0, workerspeed=1, cost=1, flows="{'flow': {'flowid': 1}}"];
+strict digraph "Example MultiSwitch Configuration" {
+1 [pos="[0, 0]", task=0, taskname="Task 0", worker=0, workerspeed=1, cost=0, switch=0, flows="{'flow': [{'flowid': 0, 'flowname': 'Flow 0', 'flowrate': 10, 'flowrateSLO': 0.4, 'flowdelaySLO': 5}, {'flowid': 1, 'flowname': 'Flow 1', 'flowrate': 12, 'flowrateSLO': 0.1, 'flowdelaySLO': 11}]}"];
+2 [pos="[2, 0]", task=0, taskname="Task 0", worker=0, workerspeed=1, cost=0, switch=0, flows="{'flow': [{'flowid': 0, 'flowname': 'Flow 0', 'flowrate': 10, 'flowrateSLO': 0.4, 'flowdelaySLO': 5}, {'flowid': 1, 'flowname': 'Flow 1', 'flowrate': 12, 'flowrateSLO': 0.1, 'flowdelaySLO': 11}]}"];
+3 [pos="[4, 2]", task=1, taskname="Task 1", worker=0, workerspeed=1, cost=1, switch=0, flows="{'flow': {'flowid': 0, 'flowname': 'Flow 0', 'flowrate': 10, 'flowrateSLO': 0.4, 'flowdelaySLO': 5}}"];
+4 [pos="[0, 0]", task=2, taskname="Task 2", worker=0, workerspeed=1, cost=1, switch=0, flows="{'flow': {'flowid': 1, 'flowname': 'Flow 1', 'flowrate': 12, 'flowrateSLO': 0.1, 'flowdelaySLO': 11}}"];
+5 [pos="[4, 2]", task=3, taskname="Task 3", worker=0, workerspeed=1, cost=1, switch=1, flows="{'flow': {'flowid': 0, 'flowname': 'Flow 0', 'flowrate': 10, 'flowrateSLO': 0.4, 'flowdelaySLO': 5}}"];
+6 [pos="[0, 0]", task=4, taskname="Task 4", worker=0, workerspeed=1, cost=1, switch=1, flows="{'flow': {'flowid': 1, 'flowname': 'Flow 1', 'flowrate': 12, 'flowrateSLO': 0.1, 'flowdelaySLO': 11}}"];
 1 -> 2;
 2 -> 3;
 2 -> 4;
+3 -> 5;
+4 -> 6;
 }

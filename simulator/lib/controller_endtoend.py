@@ -12,8 +12,12 @@ class EndToEndController:
     def __init__(self, switches=[switch]):
         self.period = 0
         self.switches = switches
-        self.controllers = [controller_switch.SwitchController(_switch) for _switch in switches]
-
+        self.controllers = []
+        for _switch in switches:
+            if _switch.reallocation_controller:
+                self.controllers.append(_switch.reallocation_controller)
+            else:
+                self.controllers.append(controller_switch.SwitchController(_switch)) 
     def __repr__(self):
         return f"EndToEnd Controller: working on {self.switches} (period: {self.period})"
 

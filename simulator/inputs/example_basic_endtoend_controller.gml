@@ -1,6 +1,8 @@
 
 graph [
  	name "Example MultiSwitch Configuration"
+	resource_reallocation 1
+	reallocation_strategies "least_constrained"
   endtoend_controller 1
  	directed 1
   num_workers 2
